@@ -130,6 +130,10 @@ export function ToolForm({ tool }: ToolFormProps) {
                   onChange={(e) => updateField(input.id, e.target.value)}
                   placeholder={input.placeholder}
                   className="text-xs h-8"
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                 />
               )}
             </div>
