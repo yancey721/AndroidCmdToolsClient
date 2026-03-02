@@ -58,7 +58,18 @@ export function ToolForm({ tool }: ToolFormProps) {
     });
 
     const scriptFullPath = `AndroidCmdTools/${tool.scriptPath}`;
-    await executeScript(scriptFullPath, stdinInputs);
+    const inputLabels = tool.inputs
+      .map((input) => ({
+        label: input.label,
+        value: formValues[input.id] || "",
+      }));
+
+    await executeScript({
+      scriptPath: scriptFullPath,
+      stdinInputs,
+      toolName: tool.name,
+      inputLabels,
+    });
   };
 
   return (

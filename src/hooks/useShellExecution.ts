@@ -57,11 +57,16 @@ export function initShellListeners() {
   });
 }
 
-export async function executeScript(
-  scriptPath: string,
-  stdinInputs: string[],
-  workingDir?: string
-) {
+interface ExecuteOptions {
+  scriptPath: string;
+  stdinInputs: string[];
+  workingDir?: string;
+  toolName?: string;
+  inputLabels?: { label: string; value: string }[];
+}
+
+export async function executeScript(opts: ExecuteOptions) {
+  const { scriptPath, stdinInputs, workingDir, toolName, inputLabels } = opts;
   const store = useTerminalStore.getState();
 
   store.setRunning(true);
@@ -74,17 +79,30 @@ export async function executeScript(
     });
   }
 
+  const now = Date.now();
   store.addLine({
-    text: `$ 执行: ${scriptPath}`,
+    text: `▶ ${toolName || scriptPath}`,
     stream: "stdout",
-    timestamp: Date.now(),
+    timestamp: now,
   });
+
+  if (inputLabels && inputLabels.length > 0) {
+    for (const item of inputLabels) {
+      if (item.value.trim()) {
+        store.addLine({
+          text: `  ${item.label}: ${item.value}`,
+          stream: "stdout",
+          timestamp: now,
+        });
+      }
+    }
+  }
 
   try {
     await invoke("execute_script", {
       scriptPath,
       stdinInputs,
-      workingDir,
+      workingDir: workingDir,
     });
   } catch (err) {
     store.addLine({
