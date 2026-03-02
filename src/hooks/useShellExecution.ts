@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 import { useTerminalStore } from "@/stores/terminalStore";
 
 interface ShellOutput {
@@ -18,47 +18,34 @@ function stripAnsi(text: string): string {
   return text.replace(ANSI_REGEX, "").replace(/\r/g, "");
 }
 
-let setupPromise: Promise<void> | null = null;
-let unlistenFns: UnlistenFn[] = [];
+let initialized = false;
 
-export function setupShellListeners() {
-  if (setupPromise) return;
+export function initShellListeners() {
+  if (initialized) return;
+  initialized = true;
 
-  setupPromise = (async () => {
-    const unlistenOutput = await listen<ShellOutput>("shell-output", (event) => {
-      const cleaned = stripAnsi(event.payload.line);
-      if (!cleaned.trim()) return;
+  listen<ShellOutput>("shell-output", (event) => {
+    const cleaned = stripAnsi(event.payload.line);
+    if (!cleaned.trim()) return;
 
-      useTerminalStore.getState().addLine({
-        text: cleaned,
-        stream: event.payload.stream as "stdout" | "stderr",
-        timestamp: Date.now(),
-      });
+    useTerminalStore.getState().addLine({
+      text: cleaned,
+      stream: event.payload.stream as "stdout" | "stderr",
+      timestamp: Date.now(),
     });
+  });
 
-    const unlistenExit = await listen<ShellExit>("shell-exit", (event) => {
-      const { code, success } = event.payload;
-      useTerminalStore.getState().addLine({
-        text: success
-          ? `✅ 执行完成 (exit code: ${code})`
-          : `❌ 执行失败 (exit code: ${code})`,
-        stream: success ? "stdout" : "stderr",
-        timestamp: Date.now(),
-      });
-      useTerminalStore.getState().setRunning(false);
+  listen<ShellExit>("shell-exit", (event) => {
+    const { code, success } = event.payload;
+    useTerminalStore.getState().addLine({
+      text: success
+        ? `✅ 执行完成 (exit code: ${code})`
+        : `❌ 执行失败 (exit code: ${code})`,
+      stream: success ? "stdout" : "stderr",
+      timestamp: Date.now(),
     });
-
-    unlistenFns = [unlistenOutput, unlistenExit];
-  })();
-}
-
-export async function teardownShellListeners() {
-  if (setupPromise) {
-    await setupPromise;
-  }
-  unlistenFns.forEach((fn) => fn());
-  unlistenFns = [];
-  setupPromise = null;
+    useTerminalStore.getState().setRunning(false);
+  });
 }
 
 export async function executeScript(

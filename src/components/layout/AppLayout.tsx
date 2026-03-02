@@ -6,7 +6,6 @@ import { TerminalPanel } from "./TerminalPanel";
 import { SearchDialog } from "@/components/common/SearchDialog";
 import { ResizeHandle } from "@/components/common/ResizeHandle";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
-import { setupShellListeners, teardownShellListeners } from "@/hooks/useShellExecution";
 
 const SIDEBAR_MIN = 180;
 const SIDEBAR_MAX = 400;
@@ -23,11 +22,6 @@ export function AppLayout() {
   const [terminalHeight, setTerminalHeight] = useState(TERMINAL_DEFAULT);
 
   useDeviceDetection();
-
-  useEffect(() => {
-    setupShellListeners();
-    return () => teardownShellListeners();
-  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
