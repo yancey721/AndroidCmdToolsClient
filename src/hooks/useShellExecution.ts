@@ -60,13 +60,15 @@ export function initShellListeners() {
 interface ExecuteOptions {
   scriptPath: string;
   stdinInputs: string[];
+  postInputs?: string[];
+  postDelayMs?: number;
   workingDir?: string;
   toolName?: string;
   inputLabels?: { label: string; value: string }[];
 }
 
 export async function executeScript(opts: ExecuteOptions) {
-  const { scriptPath, stdinInputs, workingDir, toolName, inputLabels } = opts;
+  const { scriptPath, stdinInputs, postInputs, postDelayMs, workingDir, toolName, inputLabels } = opts;
   const store = useTerminalStore.getState();
 
   store.setRunning(true);
@@ -102,6 +104,8 @@ export async function executeScript(opts: ExecuteOptions) {
     await invoke("execute_script", {
       scriptPath,
       stdinInputs,
+      postInputs: postInputs || [],
+      postDelayMs: postDelayMs,
       workingDir: workingDir,
     });
   } catch (err) {

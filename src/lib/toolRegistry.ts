@@ -26,6 +26,8 @@ export interface ToolDefinition {
   deviceMode: DeviceMode;
   multipleDevices: boolean;
   requiredEnv: EnvRequirement[];
+  postInputs?: string[];
+  postDelayMs?: number;
 }
 
 export interface ToolCategory {
@@ -594,6 +596,8 @@ export const tools: ToolDefinition[] = [
     deviceMode: "adb",
     multipleDevices: true,
     requiredEnv: ["adb"],
+    postInputs: ["", "y"],
+    postDelayMs: 3000,
   },
   {
     id: "press-back-key",

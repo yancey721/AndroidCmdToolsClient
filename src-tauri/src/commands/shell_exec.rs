@@ -2,6 +2,8 @@ use serde::Serialize;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
 #[derive(Serialize, Clone, Debug)]
@@ -32,7 +34,6 @@ fn find_bash() -> String {
 }
 
 fn resolve_project_root(app: &AppHandle) -> PathBuf {
-    // Production: use resource dir
     if let Ok(resource_dir) = app.path().resource_dir() {
         let scripts_in_resource = resource_dir.join("AndroidCmdTools").join("shell");
         if scripts_in_resource.exists() {
@@ -40,7 +41,6 @@ fn resolve_project_root(app: &AppHandle) -> PathBuf {
         }
     }
 
-    // Development: walk up from the executable to find AndroidCmdTools/
     if let Ok(exe_path) = std::env::current_exe() {
         let mut dir = exe_path.parent().map(|p| p.to_path_buf());
         for _ in 0..10 {
@@ -56,7 +56,6 @@ fn resolve_project_root(app: &AppHandle) -> PathBuf {
         }
     }
 
-    // Fallback: try CARGO_MANIFEST_DIR (only available at compile time for dev builds)
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let project_root = PathBuf::from(manifest_dir)
         .parent()
@@ -75,6 +74,8 @@ pub async fn execute_script(
     app: AppHandle,
     script_path: String,
     stdin_inputs: Vec<String>,
+    post_inputs: Vec<String>,
+    post_delay_ms: Option<u64>,
     working_dir: Option<String>,
 ) -> Result<(), String> {
     let bash = find_bash();
@@ -103,13 +104,44 @@ pub async fn execute_script(
         .spawn()
         .map_err(|e| format!("启动脚本失败: {}", e))?;
 
+    let process_done = Arc::new(AtomicBool::new(false));
+    let done_for_stdin = process_done.clone();
+
     if let Some(mut stdin) = child.stdin.take() {
         let inputs = stdin_inputs.clone();
+        let delayed = post_inputs;
+        let delay = post_delay_ms.unwrap_or(3000);
         std::thread::spawn(move || {
-            for input in inputs {
+            for input in &inputs {
+                if done_for_stdin.load(Ordering::Relaxed) {
+                    return;
+                }
                 let _ = writeln!(stdin, "{}", input);
                 let _ = stdin.flush();
                 std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+
+            if !delayed.is_empty() {
+                std::thread::sleep(std::time::Duration::from_millis(delay));
+                for input in &delayed {
+                    if done_for_stdin.load(Ordering::Relaxed) {
+                        return;
+                    }
+                    let _ = writeln!(stdin, "{}", input);
+                    let _ = stdin.flush();
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                }
+            }
+
+            // Keep stdin open to prevent scripts from getting EOF on `read`,
+            // which can trigger infinite loops in while-true validation loops.
+            // Timeout after 60s as a safety net.
+            let start = std::time::Instant::now();
+            while !done_for_stdin.load(Ordering::Relaxed) {
+                if start.elapsed() > std::time::Duration::from_secs(60) {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(500));
             }
         });
     }
@@ -150,18 +182,19 @@ pub async fn execute_script(
         });
     }
 
-    let status = child
-        .wait()
-        .map_err(|e| format!("等待脚本结束失败: {}", e))?;
-
-    let code = status.code().unwrap_or(-1);
-    let _ = app.emit(
-        "shell-exit",
-        ShellExit {
-            code,
-            success: status.success(),
-        },
-    );
+    let app_for_exit = app.clone();
+    tokio::task::spawn_blocking(move || {
+        let status = child.wait();
+        process_done.store(true, Ordering::Relaxed);
+        let (code, success) = match status {
+            Ok(s) => (s.code().unwrap_or(-1), s.success()),
+            Err(_) => (-1, false),
+        };
+        let _ = app_for_exit.emit(
+            "shell-exit",
+            ShellExit { code, success },
+        );
+    });
 
     Ok(())
 }

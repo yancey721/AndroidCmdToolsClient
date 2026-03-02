@@ -14,11 +14,16 @@ interface TerminalStore {
   setRunning: (running: boolean) => void;
 }
 
+const MAX_LINES = 5000;
+
 export const useTerminalStore = create<TerminalStore>((set) => ({
   lines: [],
   isRunning: false,
   addLine: (line) =>
-    set((state) => ({ lines: [...state.lines, line] })),
+    set((state) => {
+      const next = [...state.lines, line];
+      return { lines: next.length > MAX_LINES ? next.slice(-MAX_LINES) : next };
+    }),
   clear: () => set({ lines: [] }),
   setRunning: (running) => set({ isRunning: running }),
 }));
