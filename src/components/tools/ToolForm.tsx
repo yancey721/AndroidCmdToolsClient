@@ -8,7 +8,7 @@ import { ToolDefinition } from "@/lib/toolRegistry";
 import { useDeviceStore } from "@/stores/deviceStore";
 import { useTerminalStore } from "@/stores/terminalStore";
 import { useEnvironmentCheck } from "@/hooks/useEnvironmentCheck";
-import { useShellExecution } from "@/hooks/useShellExecution";
+import { executeScript } from "@/hooks/useShellExecution";
 import { Play, AlertTriangle } from "lucide-react";
 
 interface ToolFormProps {
@@ -27,7 +27,6 @@ export function ToolForm({ tool }: ToolFormProps) {
   const { selectedDeviceId, devices } = useDeviceStore();
   const { status: envStatus } = useEnvironmentCheck();
   const { isRunning } = useTerminalStore();
-  const { execute } = useShellExecution();
 
   const updateField = useCallback((id: string, value: string) => {
     setFormValues((prev) => ({ ...prev, [id]: value }));
@@ -59,8 +58,7 @@ export function ToolForm({ tool }: ToolFormProps) {
     });
 
     const scriptFullPath = `AndroidCmdTools/${tool.scriptPath}`;
-    const workingDir = undefined;
-    await execute(scriptFullPath, stdinInputs, workingDir);
+    await executeScript(scriptFullPath, stdinInputs);
   };
 
   return (

@@ -1,9 +1,18 @@
 import { useEffect, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { ChevronUp, ChevronDown, Trash2, TerminalSquare, Loader2 } from "lucide-react";
+import {
+  ChevronUp,
+  ChevronDown,
+  Trash2,
+  TerminalSquare,
+  Loader2,
+  Copy,
+  Check,
+} from "lucide-react";
 import { useTerminalStore } from "@/stores/terminalStore";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 interface TerminalPanelProps {
   expanded: boolean;
@@ -13,10 +22,30 @@ interface TerminalPanelProps {
 export function TerminalPanel({ expanded, onToggle }: TerminalPanelProps) {
   const { lines, isRunning, clear } = useTerminalStore();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [lines]);
+
+  const handleCopy = async () => {
+    const text = lines.map((l) => l.text).join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   return (
     <div className="border-t border-border">
@@ -37,16 +66,38 @@ export function TerminalPanel({ expanded, onToggle }: TerminalPanelProps) {
           )}
         </div>
         <div className="flex items-center gap-1">
+          {lines.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={handleCopy}
+              title="复制全部输出"
+            >
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-green-400" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
             className="h-6 w-6"
             onClick={clear}
             disabled={isRunning}
+            title="清除"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onToggle}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={onToggle}
+            title={expanded ? "折叠" : "展开"}
+          >
             {expanded ? (
               <ChevronDown className="h-3.5 w-3.5" />
             ) : (
@@ -57,16 +108,20 @@ export function TerminalPanel({ expanded, onToggle }: TerminalPanelProps) {
       </div>
       {expanded && (
         <ScrollArea className="h-[200px] bg-background">
-          <div className="p-3 font-mono text-xs space-y-0.5">
+          <div className="p-3 font-mono text-xs space-y-0.5 select-text cursor-text">
             {lines.length === 0 ? (
-              <p className="text-muted-foreground">准备就绪，选择工具并执行...</p>
+              <p className="text-muted-foreground select-none">
+                准备就绪，选择工具并执行...
+              </p>
             ) : (
               lines.map((line, i) => (
                 <div
                   key={i}
                   className={cn(
                     "whitespace-pre-wrap break-all",
-                    line.stream === "stderr" ? "text-red-400" : "text-foreground"
+                    line.stream === "stderr"
+                      ? "text-red-400"
+                      : "text-foreground"
                   )}
                 >
                   {line.text}
