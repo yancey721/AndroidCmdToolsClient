@@ -18,43 +18,47 @@ function stripAnsi(text: string): string {
   return text.replace(ANSI_REGEX, "").replace(/\r/g, "");
 }
 
-let listenersSetUp = false;
+let setupPromise: Promise<void> | null = null;
 let unlistenFns: UnlistenFn[] = [];
 
-export async function setupShellListeners() {
-  if (listenersSetUp) return;
-  listenersSetUp = true;
+export function setupShellListeners() {
+  if (setupPromise) return;
 
-  const unlistenOutput = await listen<ShellOutput>("shell-output", (event) => {
-    const cleaned = stripAnsi(event.payload.line);
-    if (!cleaned.trim()) return;
+  setupPromise = (async () => {
+    const unlistenOutput = await listen<ShellOutput>("shell-output", (event) => {
+      const cleaned = stripAnsi(event.payload.line);
+      if (!cleaned.trim()) return;
 
-    useTerminalStore.getState().addLine({
-      text: cleaned,
-      stream: event.payload.stream as "stdout" | "stderr",
-      timestamp: Date.now(),
+      useTerminalStore.getState().addLine({
+        text: cleaned,
+        stream: event.payload.stream as "stdout" | "stderr",
+        timestamp: Date.now(),
+      });
     });
-  });
 
-  const unlistenExit = await listen<ShellExit>("shell-exit", (event) => {
-    const { code, success } = event.payload;
-    useTerminalStore.getState().addLine({
-      text: success
-        ? `\n✅ 执行完成 (exit code: ${code})`
-        : `\n❌ 执行失败 (exit code: ${code})`,
-      stream: success ? "stdout" : "stderr",
-      timestamp: Date.now(),
+    const unlistenExit = await listen<ShellExit>("shell-exit", (event) => {
+      const { code, success } = event.payload;
+      useTerminalStore.getState().addLine({
+        text: success
+          ? `✅ 执行完成 (exit code: ${code})`
+          : `❌ 执行失败 (exit code: ${code})`,
+        stream: success ? "stdout" : "stderr",
+        timestamp: Date.now(),
+      });
+      useTerminalStore.getState().setRunning(false);
     });
-    useTerminalStore.getState().setRunning(false);
-  });
 
-  unlistenFns = [unlistenOutput, unlistenExit];
+    unlistenFns = [unlistenOutput, unlistenExit];
+  })();
 }
 
-export function teardownShellListeners() {
+export async function teardownShellListeners() {
+  if (setupPromise) {
+    await setupPromise;
+  }
   unlistenFns.forEach((fn) => fn());
   unlistenFns = [];
-  listenersSetUp = false;
+  setupPromise = null;
 }
 
 export async function executeScript(
@@ -63,8 +67,13 @@ export async function executeScript(
   workingDir?: string
 ) {
   const store = useTerminalStore.getState();
-  store.clear();
+
   store.setRunning(true);
+  store.addLine({
+    text: "",
+    stream: "stdout",
+    timestamp: Date.now(),
+  });
   store.addLine({
     text: `$ 执行: ${scriptPath}`,
     stream: "stdout",
