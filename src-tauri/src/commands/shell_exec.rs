@@ -91,9 +91,16 @@ pub async fn execute_script(
         ));
     }
 
+    let android_cmd_tools_dir = project_root.join("AndroidCmdTools");
     let cwd = working_dir
         .map(PathBuf::from)
-        .unwrap_or_else(|| project_root.clone());
+        .unwrap_or_else(|| {
+            if android_cmd_tools_dir.exists() {
+                android_cmd_tools_dir
+            } else {
+                project_root.clone()
+            }
+        });
 
     let mut child = Command::new(&bash)
         .arg(full_script_path.to_str().unwrap_or(&script_path))
