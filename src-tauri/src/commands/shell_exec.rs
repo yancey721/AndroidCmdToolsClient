@@ -183,7 +183,7 @@ pub async fn execute_script(
     }
 
     let app_for_exit = app.clone();
-    tokio::task::spawn_blocking(move || {
+    std::thread::spawn(move || {
         let status = child.wait();
         process_done.store(true, Ordering::Relaxed);
         let (code, success) = match status {
