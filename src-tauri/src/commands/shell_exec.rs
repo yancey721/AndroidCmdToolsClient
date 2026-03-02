@@ -3,8 +3,11 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager};
+
+static RUNNING_PID: std::sync::LazyLock<Mutex<Option<u32>>> =
+    std::sync::LazyLock::new(|| Mutex::new(None));
 
 #[derive(Serialize, Clone, Debug)]
 pub struct ShellOutput {
@@ -111,6 +114,11 @@ pub async fn execute_script(
         .spawn()
         .map_err(|e| format!("启动脚本失败: {}", e))?;
 
+    let pid = child.id();
+    if let Ok(mut lock) = RUNNING_PID.lock() {
+        *lock = Some(pid);
+    }
+
     let process_done = Arc::new(AtomicBool::new(false));
     let done_for_stdin = process_done.clone();
 
@@ -140,9 +148,6 @@ pub async fn execute_script(
                 }
             }
 
-            // Keep stdin open to prevent scripts from getting EOF on `read`,
-            // which can trigger infinite loops in while-true validation loops.
-            // Timeout after 60s as a safety net.
             let start = std::time::Instant::now();
             while !done_for_stdin.load(Ordering::Relaxed) {
                 if start.elapsed() > std::time::Duration::from_secs(60) {
@@ -193,6 +198,13 @@ pub async fn execute_script(
     std::thread::spawn(move || {
         let status = child.wait();
         process_done.store(true, Ordering::Relaxed);
+
+        if let Ok(mut lock) = RUNNING_PID.lock() {
+            if *lock == Some(pid) {
+                *lock = None;
+            }
+        }
+
         let (code, success) = match status {
             Ok(s) => (s.code().unwrap_or(-1), s.success()),
             Err(_) => (-1, false),
@@ -204,6 +216,36 @@ pub async fn execute_script(
     });
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn kill_running_process() -> Result<(), String> {
+    let pid = {
+        let lock = RUNNING_PID.lock().map_err(|e| e.to_string())?;
+        *lock
+    };
+
+    if let Some(pid) = pid {
+        #[cfg(unix)]
+        {
+            unsafe {
+                // Kill entire process group
+                libc::kill(-(pid as i32), libc::SIGKILL);
+            }
+        }
+        #[cfg(windows)]
+        {
+            let _ = Command::new("taskkill")
+                .args(["/PID", &pid.to_string(), "/T", "/F"])
+                .output();
+        }
+        if let Ok(mut lock) = RUNNING_PID.lock() {
+            *lock = None;
+        }
+        Ok(())
+    } else {
+        Err("没有正在运行的进程".to_string())
+    }
 }
 
 #[tauri::command]

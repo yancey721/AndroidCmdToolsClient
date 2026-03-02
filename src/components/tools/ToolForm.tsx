@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,8 +16,8 @@ import { ToolDefinition, ToolInput } from "@/lib/toolRegistry";
 import { useDeviceStore } from "@/stores/deviceStore";
 import { useTerminalStore } from "@/stores/terminalStore";
 import { useEnvironmentCheck } from "@/hooks/useEnvironmentCheck";
-import { executeScript, runAdbCommand } from "@/hooks/useShellExecution";
-import { Play, AlertTriangle } from "lucide-react";
+import { executeScript, runAdbCommand, killProcess } from "@/hooks/useShellExecution";
+import { Play, Square, AlertTriangle } from "lucide-react";
 
 interface ToolFormProps {
   tool: ToolDefinition;
@@ -47,6 +47,17 @@ export function ToolForm({ tool, prefill }: ToolFormProps) {
   const updateField = useCallback((id: string, value: string) => {
     setFormValues((prev) => ({ ...prev, [id]: value }));
   }, []);
+
+  const [showKill, setShowKill] = useState(false);
+
+  useEffect(() => {
+    if (!isRunning) {
+      setShowKill(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowKill(true), 3000);
+    return () => clearTimeout(timer);
+  }, [isRunning]);
 
   const missingEnvs = tool.requiredEnv.filter(
     (env) => envStatus && !envStatus[env as keyof typeof envStatus]
@@ -259,15 +270,28 @@ export function ToolForm({ tool, prefill }: ToolFormProps) {
         </div>
       )}
 
-      <Button
-        onClick={handleExecute}
-        disabled={!canExecute}
-        className="w-full"
-        size="sm"
-      >
-        <Play className="h-3.5 w-3.5 mr-1.5" />
-        {isRunning ? "执行中..." : "执行"}
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          onClick={handleExecute}
+          disabled={!canExecute}
+          className="flex-1"
+          size="sm"
+        >
+          <Play className="h-3.5 w-3.5 mr-1.5" />
+          {isRunning ? "执行中..." : "执行"}
+        </Button>
+        {isRunning && showKill && (
+          <Button
+            onClick={killProcess}
+            variant="destructive"
+            size="sm"
+            className="animate-in fade-in slide-in-from-right-2 duration-200"
+          >
+            <Square className="h-3.5 w-3.5 mr-1.5" />
+            终止
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

@@ -118,6 +118,21 @@ export async function executeScript(opts: ExecuteOptions) {
   }
 }
 
+export async function killProcess() {
+  try {
+    await invoke("kill_running_process");
+    const store = useTerminalStore.getState();
+    store.addLine({
+      text: "⛔ 已终止执行",
+      stream: "stderr",
+      timestamp: Date.now(),
+    });
+    store.setRunning(false);
+  } catch {
+    // ignore - process may have already exited
+  }
+}
+
 interface AdbCommandOptions {
   deviceId: string;
   args: string[];
