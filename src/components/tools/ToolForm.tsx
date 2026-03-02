@@ -3,8 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { FilePickerInput } from "@/components/common/FilePickerInput";
-import { ToolDefinition } from "@/lib/toolRegistry";
+import { ToolDefinition, ToolInput } from "@/lib/toolRegistry";
 import { useDeviceStore } from "@/stores/deviceStore";
 import { useTerminalStore } from "@/stores/terminalStore";
 import { useEnvironmentCheck } from "@/hooks/useEnvironmentCheck";
@@ -20,7 +28,13 @@ export function ToolForm({ tool, prefill }: ToolFormProps) {
   const [formValues, setFormValues] = useState<Record<string, string>>(() => {
     const defaults: Record<string, string> = {};
     tool.inputs.forEach((input) => {
-      defaults[input.id] = prefill?.[input.id] || input.defaultValue || "";
+      if (input.type === "confirm") {
+        defaults[input.id] = prefill?.[input.id] || input.defaultValue || "n";
+      } else if (input.type === "select" && input.options?.length) {
+        defaults[input.id] = prefill?.[input.id] || input.defaultValue || input.options[0].value;
+      } else {
+        defaults[input.id] = prefill?.[input.id] || input.defaultValue || "";
+      }
     });
     return defaults;
   });
@@ -44,15 +58,22 @@ export function ToolForm({ tool, prefill }: ToolFormProps) {
     missingEnvs.length === 0 &&
     !needsDevice &&
     tool.inputs
-      .filter((i) => i.required)
+      .filter((i) => i.required && i.type !== "confirm" && i.type !== "select")
       .every((i) => formValues[i.id]?.trim());
 
   const handleExecute = async () => {
     const inputLabels = tool.inputs
-      .map((input) => ({
-        label: input.label,
-        value: formValues[input.id] || "",
-      }));
+      .filter((input) => input.type !== "confirm" || formValues[input.id] === "y")
+      .map((input) => {
+        if (input.type === "confirm") {
+          return { label: input.label, value: formValues[input.id] === "y" ? "是" : "否" };
+        }
+        if (input.type === "select") {
+          const opt = input.options?.find((o) => o.value === formValues[input.id]);
+          return { label: input.label, value: opt?.label || formValues[input.id] };
+        }
+        return { label: input.label, value: formValues[input.id] || "" };
+      });
 
     if (tool.adbDirect && selectedDeviceId) {
       const adbArgs = tool.adbDirect(formValues);
@@ -94,8 +115,10 @@ export function ToolForm({ tool, prefill }: ToolFormProps) {
       if (e.key !== "Enter") return;
       e.preventDefault();
 
-      const requiredInputs = tool.inputs.filter((i) => i.required);
-      const firstEmpty = requiredInputs.find((i) => !formValues[i.id]?.trim());
+      const textInputs = tool.inputs.filter(
+        (i) => i.required && !["confirm", "select", "file", "directory"].includes(i.type)
+      );
+      const firstEmpty = textInputs.find((i) => !formValues[i.id]?.trim());
       if (firstEmpty) {
         inputRefs.current[firstEmpty.id]?.focus();
         return;
@@ -108,6 +131,86 @@ export function ToolForm({ tool, prefill }: ToolFormProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [formValues, canExecute, tool.inputs],
   );
+
+  const renderInput = (input: ToolInput) => {
+    switch (input.type) {
+      case "file":
+      case "directory":
+        return (
+          <FilePickerInput
+            value={formValues[input.id] || ""}
+            onChange={(v) => updateField(input.id, v)}
+            type={input.type}
+            label={input.label}
+            fileFilters={input.fileFilters}
+            placeholder={input.placeholder}
+          />
+        );
+
+      case "select":
+        return (
+          <Select
+            value={formValues[input.id]}
+            onValueChange={(v) => updateField(input.id, v)}
+          >
+            <SelectTrigger className="text-xs h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {input.options?.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+
+      case "confirm":
+        return (
+          <div className="flex items-center gap-3">
+            <Switch
+              checked={formValues[input.id] === "y"}
+              onCheckedChange={(checked) => updateField(input.id, checked ? "y" : "n")}
+            />
+            <span className="text-xs text-muted-foreground">
+              {formValues[input.id] === "y" ? "是" : "否"}
+            </span>
+          </div>
+        );
+
+      case "password":
+        return (
+          <Input
+            ref={(el) => { inputRefs.current[input.id] = el; }}
+            type="password"
+            value={formValues[input.id] || ""}
+            onChange={(e) => updateField(input.id, e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={input.placeholder}
+            className="text-xs h-8"
+            autoComplete="off"
+          />
+        );
+
+      default:
+        return (
+          <Input
+            ref={(el) => { inputRefs.current[input.id] = el; }}
+            type={input.type === "number" ? "number" : input.type === "url" ? "url" : "text"}
+            value={formValues[input.id] || ""}
+            onChange={(e) => updateField(input.id, e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={input.placeholder}
+            className="text-xs h-8"
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+        );
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -134,32 +237,11 @@ export function ToolForm({ tool, prefill }: ToolFormProps) {
             <div key={input.id} className="space-y-1.5">
               <Label className="text-xs font-medium">
                 {input.label}
-                {input.required && <span className="text-red-400 ml-0.5">*</span>}
+                {input.required && input.type !== "confirm" && input.type !== "select" && (
+                  <span className="text-red-400 ml-0.5">*</span>
+                )}
               </Label>
-              {input.type === "file" || input.type === "directory" ? (
-                <FilePickerInput
-                  value={formValues[input.id] || ""}
-                  onChange={(v) => updateField(input.id, v)}
-                  type={input.type}
-                  label={input.label}
-                  fileFilters={input.fileFilters}
-                  placeholder={input.placeholder}
-                />
-              ) : (
-                <Input
-                  ref={(el) => { inputRefs.current[input.id] = el; }}
-                  type={input.type === "number" ? "number" : input.type === "url" ? "url" : "text"}
-                  value={formValues[input.id] || ""}
-                  onChange={(e) => updateField(input.id, e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={input.placeholder}
-                  className="text-xs h-8"
-                  autoComplete="off"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                />
-              )}
+              {renderInput(input)}
             </div>
           ))}
         </div>

@@ -1,4 +1,4 @@
-export type ToolInputType = "file" | "directory" | "text" | "url" | "select" | "confirm" | "number";
+export type ToolInputType = "file" | "directory" | "text" | "url" | "select" | "confirm" | "number" | "password";
 export type EnvRequirement = "adb" | "java" | "git" | "fastboot";
 export type DeviceMode = "adb" | "fastboot" | "all" | "none";
 
@@ -125,6 +125,13 @@ export const tools: ToolDefinition[] = [
         placeholder: "com.example.app",
         required: true,
       },
+      {
+        id: "keepData",
+        type: "confirm",
+        label: "保留应用数据和缓存",
+        required: false,
+        defaultValue: "n",
+      },
     ],
     requiresDevice: true,
     deviceMode: "adb",
@@ -183,6 +190,17 @@ export const tools: ToolDefinition[] = [
     scriptPath: "shell/device-tools/SaveScreenshot.sh",
     icon: "Camera",
     inputs: [
+      {
+        id: "action",
+        type: "select",
+        label: "操作方式",
+        options: [
+          { value: "1", label: "复制手机截图到剪贴板" },
+          { value: "2", label: "保存手机截图到电脑" },
+        ],
+        required: true,
+        defaultValue: "2",
+      },
       {
         id: "targetDir",
         type: "directory",
@@ -309,6 +327,13 @@ export const tools: ToolDefinition[] = [
         type: "text",
         label: "应用包名 (留空导出全部)",
         required: false,
+      },
+      {
+        id: "includeSystem",
+        type: "confirm",
+        label: "导出系统应用",
+        required: false,
+        defaultValue: "n",
       },
     ],
     requiresDevice: true,
@@ -592,13 +617,25 @@ export const tools: ToolDefinition[] = [
         label: "输入内容",
         required: true,
       },
+      {
+        id: "confirmEnter",
+        type: "confirm",
+        label: "按回车继续传输",
+        required: false,
+        defaultValue: "y",
+      },
+      {
+        id: "confirmFocus",
+        type: "confirm",
+        label: "输入框焦点已获取",
+        required: false,
+        defaultValue: "y",
+      },
     ],
     requiresDevice: true,
     deviceMode: "adb",
     multipleDevices: true,
     requiredEnv: ["adb"],
-    postInputs: ["", "y", "y"],
-    postDelayMs: 2300,
     adbDirect: (inputs) => {
       const text = inputs.text || "";
       // eslint-disable-next-line no-control-regex
@@ -715,7 +752,15 @@ export const tools: ToolDefinition[] = [
     subcategory: "device-env",
     scriptPath: "shell/device-tools/env/RestartAdb.sh",
     icon: "RefreshCw",
-    inputs: [],
+    inputs: [
+      {
+        id: "confirmAction",
+        type: "confirm",
+        label: "确认重启 ADB 进程",
+        required: false,
+        defaultValue: "y",
+      },
+    ],
     requiresDevice: false,
     deviceMode: "none",
     multipleDevices: false,
@@ -729,7 +774,15 @@ export const tools: ToolDefinition[] = [
     subcategory: "device-env",
     scriptPath: "shell/device-tools/env/KillAdb.sh",
     icon: "XSquare",
-    inputs: [],
+    inputs: [
+      {
+        id: "confirmAction",
+        type: "confirm",
+        label: "确认杀死 ADB 进程",
+        required: false,
+        defaultValue: "y",
+      },
+    ],
     requiresDevice: false,
     deviceMode: "none",
     multipleDevices: false,
@@ -773,7 +826,15 @@ export const tools: ToolDefinition[] = [
     subcategory: "device-hardware",
     scriptPath: "shell/device-tools/hardware/PowerOffDevice.sh",
     icon: "PowerOff",
-    inputs: [],
+    inputs: [
+      {
+        id: "confirmAction",
+        type: "confirm",
+        label: "确认对设备关机",
+        required: false,
+        defaultValue: "y",
+      },
+    ],
     requiresDevice: true,
     deviceMode: "all",
     multipleDevices: false,
@@ -787,7 +848,15 @@ export const tools: ToolDefinition[] = [
     subcategory: "device-hardware",
     scriptPath: "shell/device-tools/hardware/DeviceRestart.sh",
     icon: "RotateCw",
-    inputs: [],
+    inputs: [
+      {
+        id: "confirmAction",
+        type: "confirm",
+        label: "确认对设备重启",
+        required: false,
+        defaultValue: "y",
+      },
+    ],
     requiresDevice: true,
     deviceMode: "all",
     multipleDevices: false,
@@ -910,7 +979,15 @@ export const tools: ToolDefinition[] = [
     subcategory: "device-flash",
     scriptPath: "shell/device-tools/flash/RestartToFastboot.sh",
     icon: "Zap",
-    inputs: [],
+    inputs: [
+      {
+        id: "confirmAction",
+        type: "confirm",
+        label: "确认重启到 Fastboot 模式",
+        required: false,
+        defaultValue: "y",
+      },
+    ],
     requiresDevice: true,
     deviceMode: "adb",
     multipleDevices: false,
@@ -924,7 +1001,15 @@ export const tools: ToolDefinition[] = [
     subcategory: "device-flash",
     scriptPath: "shell/device-tools/flash/RestartToRecovery.sh",
     icon: "RotateCcw",
-    inputs: [],
+    inputs: [
+      {
+        id: "confirmAction",
+        type: "confirm",
+        label: "确认重启到 Recovery 模式",
+        required: false,
+        defaultValue: "y",
+      },
+    ],
     requiresDevice: true,
     deviceMode: "all",
     multipleDevices: false,
@@ -960,6 +1045,13 @@ export const tools: ToolDefinition[] = [
         fileFilters: [{ name: "IMG", extensions: ["img"] }],
         required: true,
       },
+      {
+        id: "confirmAction",
+        type: "confirm",
+        label: "确认加载临时 Recovery（危险操作）",
+        required: false,
+        defaultValue: "y",
+      },
     ],
     requiresDevice: true,
     deviceMode: "fastboot",
@@ -981,6 +1073,13 @@ export const tools: ToolDefinition[] = [
         label: "Recovery 镜像",
         fileFilters: [{ name: "IMG", extensions: ["img"] }],
         required: true,
+      },
+      {
+        id: "confirmAction",
+        type: "confirm",
+        label: "确认刷入新的 Recovery（危险操作）",
+        required: false,
+        defaultValue: "y",
       },
     ],
     requiresDevice: true,
@@ -1629,7 +1728,26 @@ export const tools: ToolDefinition[] = [
     subcategory: "git-push",
     scriptPath: "shell/git-tools/push/ForcePushBranch.sh",
     icon: "GitBranch",
-    inputs: [],
+    inputs: [
+      {
+        id: "pushMode",
+        type: "select",
+        label: "推送方式",
+        options: [
+          { value: "1", label: "安全强推（推荐）" },
+          { value: "2", label: "暴力强推（不推荐）" },
+        ],
+        required: true,
+        defaultValue: "1",
+      },
+      {
+        id: "confirmAction",
+        type: "confirm",
+        label: "确认强制推送",
+        required: false,
+        defaultValue: "y",
+      },
+    ],
     requiresDevice: false,
     deviceMode: "none",
     multipleDevices: false,
@@ -1643,7 +1761,29 @@ export const tools: ToolDefinition[] = [
     subcategory: "git-push",
     scriptPath: "shell/git-tools/push/ForcePushTags.sh",
     icon: "Tag",
-    inputs: [],
+    inputs: [
+      {
+        id: "confirm1",
+        type: "confirm",
+        label: "确认用本地标签覆盖远端",
+        required: false,
+        defaultValue: "y",
+      },
+      {
+        id: "confirm2",
+        type: "confirm",
+        label: "确认此操作将覆盖远端标签（危险操作）",
+        required: false,
+        defaultValue: "y",
+      },
+      {
+        id: "confirm3",
+        type: "confirm",
+        label: "确认操作不可逆，没有备份",
+        required: false,
+        defaultValue: "y",
+      },
+    ],
     requiresDevice: false,
     deviceMode: "none",
     multipleDevices: false,
