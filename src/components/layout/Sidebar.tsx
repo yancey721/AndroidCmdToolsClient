@@ -137,11 +137,11 @@ export function Sidebar({ selectedToolId, onSelectTool, width }: SidebarProps) {
               </div>
             );
           })}
+          <div className="px-2 pt-4 pb-2 text-center">
+            <span className="text-[10px] text-muted-foreground/40">by Yancey</span>
+          </div>
         </div>
       </ScrollArea>
-      <div className="px-4 py-2 border-t border-border shrink-0">
-        <span className="text-[10px] text-muted-foreground/40">by Yancey</span>
-      </div>
     </div>
   );
 }
