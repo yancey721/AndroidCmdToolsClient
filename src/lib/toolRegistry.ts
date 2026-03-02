@@ -596,7 +596,7 @@ export const tools: ToolDefinition[] = [
     deviceMode: "adb",
     multipleDevices: true,
     requiredEnv: ["adb"],
-    postInputs: ["", "y"],
+    postInputs: ["", "y", "y"],
     postDelayMs: 3000,
   },
   {
