@@ -30,7 +30,9 @@ export function TerminalPanel({ expanded, onToggle, height = 200 }: TerminalPane
   }, [lines]);
 
   const handleCopy = async () => {
-    const text = lines.map((l) => l.text).join("\n");
+    const text = lines
+      .map((l) => (l.text === "---divider---" ? "─".repeat(40) : l.text))
+      .join("\n");
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -115,19 +117,26 @@ export function TerminalPanel({ expanded, onToggle, height = 200 }: TerminalPane
                 准备就绪，选择工具并执行...
               </p>
             ) : (
-              lines.map((line, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "whitespace-pre-wrap break-all",
-                    line.stream === "stderr"
-                      ? "text-red-400"
-                      : "text-foreground"
-                  )}
-                >
-                  {line.text}
-                </div>
-              ))
+              lines.map((line, i) =>
+                line.text === "---divider---" ? (
+                  <div
+                    key={i}
+                    className="my-2 border-t border-border/50"
+                  />
+                ) : (
+                  <div
+                    key={i}
+                    className={cn(
+                      "whitespace-pre-wrap break-all",
+                      line.stream === "stderr"
+                        ? "text-red-400"
+                        : "text-foreground"
+                    )}
+                  >
+                    {line.text}
+                  </div>
+                )
+              )
             )}
             <div ref={bottomRef} />
           </div>

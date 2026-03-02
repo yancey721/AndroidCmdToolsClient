@@ -18,6 +18,15 @@ function stripAnsi(text: string): string {
   return text.replace(ANSI_REGEX, "").replace(/\r/g, "");
 }
 
+const NOISE_PATTERNS = [
+  /^当前系统[：:]/,
+  /^Current OS[：:]/i,
+];
+
+function isNoiseLine(text: string): boolean {
+  return NOISE_PATTERNS.some((p) => p.test(text.trim()));
+}
+
 let initialized = false;
 
 export function initShellListeners() {
@@ -26,7 +35,7 @@ export function initShellListeners() {
 
   listen<ShellOutput>("shell-output", (event) => {
     const cleaned = stripAnsi(event.payload.line);
-    if (!cleaned.trim()) return;
+    if (!cleaned.trim() || isNoiseLine(cleaned)) return;
 
     useTerminalStore.getState().addLine({
       text: cleaned,
@@ -56,11 +65,15 @@ export async function executeScript(
   const store = useTerminalStore.getState();
 
   store.setRunning(true);
-  store.addLine({
-    text: "",
-    stream: "stdout",
-    timestamp: Date.now(),
-  });
+
+  if (store.lines.length > 0) {
+    store.addLine({
+      text: "---divider---",
+      stream: "stdout",
+      timestamp: Date.now(),
+    });
+  }
+
   store.addLine({
     text: `$ 执行: ${scriptPath}`,
     stream: "stdout",
