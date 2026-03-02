@@ -71,11 +71,11 @@ export function Sidebar({ selectedToolId, onSelectTool }: SidebarProps) {
   );
 
   return (
-    <div className="w-60 border-r border-border bg-muted/30 flex flex-col shrink-0">
-      <div className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+    <div className="w-60 border-r border-border bg-muted/30 flex flex-col shrink-0 overflow-hidden">
+      <div className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider shrink-0">
         工具分类
       </div>
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="px-2 pb-4">
           {toolCategories.map((category) => {
             const isExpanded = expandedCategories.has(category.id);
