@@ -28,6 +28,7 @@ export interface ToolDefinition {
   requiredEnv: EnvRequirement[];
   postInputs?: string[];
   postDelayMs?: number;
+  adbDirect?: (inputs: Record<string, string>) => string[] | null;
 }
 
 export interface ToolCategory {
@@ -597,7 +598,15 @@ export const tools: ToolDefinition[] = [
     multipleDevices: true,
     requiredEnv: ["adb"],
     postInputs: ["", "y", "y"],
-    postDelayMs: 3000,
+    postDelayMs: 2300,
+    adbDirect: (inputs) => {
+      const text = inputs.text || "";
+      // eslint-disable-next-line no-control-regex
+      if (/^[\x20-\x7E]+$/.test(text)) {
+        return ["shell", "input", "text", text.replace(/ /g, "%s")];
+      }
+      return null;
+    },
   },
   {
     id: "press-back-key",

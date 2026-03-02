@@ -205,3 +205,75 @@ pub async fn execute_script(
 
     Ok(())
 }
+
+#[tauri::command]
+pub async fn run_adb_command(
+    app: AppHandle,
+    device_id: String,
+    args: Vec<String>,
+) -> Result<(), String> {
+    let app_for_output = app.clone();
+    let app_for_exit = app.clone();
+
+    std::thread::spawn(move || {
+        let mut cmd = Command::new("adb");
+        if !device_id.is_empty() {
+            cmd.args(["-s", &device_id]);
+        }
+        cmd.args(&args);
+
+        let output = cmd.output();
+        match output {
+            Ok(o) => {
+                let stdout = String::from_utf8_lossy(&o.stdout);
+                for line in stdout.lines() {
+                    let _ = app_for_output.emit(
+                        "shell-output",
+                        ShellOutput {
+                            line: line.to_string(),
+                            stream: "stdout".to_string(),
+                        },
+                    );
+                }
+                let stderr = String::from_utf8_lossy(&o.stderr);
+                for line in stderr.lines() {
+                    if !line.is_empty() {
+                        let _ = app_for_output.emit(
+                            "shell-output",
+                            ShellOutput {
+                                line: line.to_string(),
+                                stream: "stderr".to_string(),
+                            },
+                        );
+                    }
+                }
+                let code = o.status.code().unwrap_or(-1);
+                let _ = app_for_exit.emit(
+                    "shell-exit",
+                    ShellExit {
+                        code,
+                        success: o.status.success(),
+                    },
+                );
+            }
+            Err(e) => {
+                let _ = app_for_output.emit(
+                    "shell-output",
+                    ShellOutput {
+                        line: format!("adb 执行失败: {}", e),
+                        stream: "stderr".to_string(),
+                    },
+                );
+                let _ = app_for_exit.emit(
+                    "shell-exit",
+                    ShellExit {
+                        code: -1,
+                        success: false,
+                    },
+                );
+            }
+        }
+    });
+
+    Ok(())
+}

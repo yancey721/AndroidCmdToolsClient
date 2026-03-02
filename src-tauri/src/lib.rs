@@ -12,6 +12,7 @@ pub fn run() {
             commands::environment::check_environment,
             commands::device::detect_devices,
             commands::shell_exec::execute_script,
+            commands::shell_exec::run_adb_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -117,3 +117,55 @@ export async function executeScript(opts: ExecuteOptions) {
     store.setRunning(false);
   }
 }
+
+interface AdbCommandOptions {
+  deviceId: string;
+  args: string[];
+  toolName?: string;
+  inputLabels?: { label: string; value: string }[];
+}
+
+export async function runAdbCommand(opts: AdbCommandOptions) {
+  const { deviceId, args, toolName, inputLabels } = opts;
+  const store = useTerminalStore.getState();
+
+  store.setRunning(true);
+
+  if (store.lines.length > 0) {
+    store.addLine({
+      text: "---divider---",
+      stream: "stdout",
+      timestamp: Date.now(),
+    });
+  }
+
+  const now = Date.now();
+  store.addLine({
+    text: `▶ ${toolName || "adb " + args.join(" ")}`,
+    stream: "stdout",
+    timestamp: now,
+  });
+
+  if (inputLabels && inputLabels.length > 0) {
+    for (const item of inputLabels) {
+      if (item.value.trim()) {
+        store.addLine({
+          text: `  ${item.label}: ${item.value}`,
+          stream: "stdout",
+          timestamp: now,
+        });
+      }
+    }
+  }
+
+  try {
+    await invoke("run_adb_command", { deviceId, args });
+  } catch (err) {
+    store.addLine({
+      text: `❌ 调用失败: ${err}`,
+      stream: "stderr",
+      timestamp: Date.now(),
+    });
+    store.setRunning(false);
+  }
+}

@@ -8,7 +8,7 @@ import { ToolDefinition } from "@/lib/toolRegistry";
 import { useDeviceStore } from "@/stores/deviceStore";
 import { useTerminalStore } from "@/stores/terminalStore";
 import { useEnvironmentCheck } from "@/hooks/useEnvironmentCheck";
-import { executeScript } from "@/hooks/useShellExecution";
+import { executeScript, runAdbCommand } from "@/hooks/useShellExecution";
 import { Play, AlertTriangle } from "lucide-react";
 
 interface ToolFormProps {
@@ -46,6 +46,25 @@ export function ToolForm({ tool }: ToolFormProps) {
       .every((i) => formValues[i.id]?.trim());
 
   const handleExecute = async () => {
+    const inputLabels = tool.inputs
+      .map((input) => ({
+        label: input.label,
+        value: formValues[input.id] || "",
+      }));
+
+    if (tool.adbDirect && selectedDeviceId) {
+      const adbArgs = tool.adbDirect(formValues);
+      if (adbArgs) {
+        await runAdbCommand({
+          deviceId: selectedDeviceId,
+          args: adbArgs,
+          toolName: tool.description,
+          inputLabels,
+        });
+        return;
+      }
+    }
+
     const stdinInputs: string[] = [];
 
     if (tool.requiresDevice && devices.length > 1 && selectedDeviceId) {
@@ -58,12 +77,6 @@ export function ToolForm({ tool }: ToolFormProps) {
     });
 
     const scriptFullPath = `AndroidCmdTools/${tool.scriptPath}`;
-    const inputLabels = tool.inputs
-      .map((input) => ({
-        label: input.label,
-        value: formValues[input.id] || "",
-      }));
-
     await executeScript({
       scriptPath: scriptFullPath,
       stdinInputs,
