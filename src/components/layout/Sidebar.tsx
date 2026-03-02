@@ -138,7 +138,7 @@ export function Sidebar({ selectedToolId, onSelectTool, width }: SidebarProps) {
             );
           })}
           <div className="px-2 pt-4 pb-2 text-center">
-            <span className="text-[10px] text-muted-foreground/40">by Yancey</span>
+            <span className="text-[16px] text-muted-foreground/40">by bjca Yancey</span>
           </div>
         </div>
       </ScrollArea>

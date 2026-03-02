@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,7 @@ export function ToolForm({ tool }: ToolFormProps) {
   const { selectedDeviceId, devices } = useDeviceStore();
   const { status: envStatus } = useEnvironmentCheck();
   const { isRunning } = useTerminalStore();
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const updateField = useCallback((id: string, value: string) => {
     setFormValues((prev) => ({ ...prev, [id]: value }));
@@ -87,6 +88,26 @@ export function ToolForm({ tool }: ToolFormProps) {
     });
   };
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+
+      const requiredInputs = tool.inputs.filter((i) => i.required);
+      const firstEmpty = requiredInputs.find((i) => !formValues[i.id]?.trim());
+      if (firstEmpty) {
+        inputRefs.current[firstEmpty.id]?.focus();
+        return;
+      }
+
+      if (canExecute) {
+        handleExecute();
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [formValues, canExecute, tool.inputs],
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -125,9 +146,11 @@ export function ToolForm({ tool }: ToolFormProps) {
                 />
               ) : (
                 <Input
+                  ref={(el) => { inputRefs.current[input.id] = el; }}
                   type={input.type === "number" ? "number" : input.type === "url" ? "url" : "text"}
                   value={formValues[input.id] || ""}
                   onChange={(e) => updateField(input.id, e.target.value)}
+                  onKeyDown={handleKeyDown}
                   placeholder={input.placeholder}
                   className="text-xs h-8"
                   autoComplete="off"
