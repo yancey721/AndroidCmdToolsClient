@@ -14,13 +14,19 @@ interface ShellExit {
 }
 
 export function useShellExecution() {
-  const { addLine, setRunning, clear } = useTerminalStore();
+  const addLine = useTerminalStore((s) => s.addLine);
+  const setRunning = useTerminalStore((s) => s.setRunning);
+  const clearTerminal = useTerminalStore((s) => s.clear);
   const unlistenRefs = useRef<UnlistenFn[]>([]);
+  const setupDone = useRef(false);
 
   useEffect(() => {
+    if (setupDone.current) return;
+    setupDone.current = true;
+
     const setup = async () => {
       const unlistenOutput = await listen<ShellOutput>("shell-output", (event) => {
-        addLine({
+        useTerminalStore.getState().addLine({
           text: event.payload.line,
           stream: event.payload.stream as "stdout" | "stderr",
           timestamp: Date.now(),
@@ -29,14 +35,14 @@ export function useShellExecution() {
 
       const unlistenExit = await listen<ShellExit>("shell-exit", (event) => {
         const { code, success } = event.payload;
-        addLine({
+        useTerminalStore.getState().addLine({
           text: success
             ? `\n✅ 执行完成 (exit code: ${code})`
             : `\n❌ 执行失败 (exit code: ${code})`,
           stream: success ? "stdout" : "stderr",
           timestamp: Date.now(),
         });
-        setRunning(false);
+        useTerminalStore.getState().setRunning(false);
       });
 
       unlistenRefs.current = [unlistenOutput, unlistenExit];
@@ -46,12 +52,13 @@ export function useShellExecution() {
 
     return () => {
       unlistenRefs.current.forEach((fn) => fn());
+      setupDone.current = false;
     };
-  }, [addLine, setRunning]);
+  }, []);
 
   const execute = useCallback(
     async (scriptPath: string, stdinInputs: string[], workingDir?: string) => {
-      clear();
+      clearTerminal();
       setRunning(true);
       addLine({
         text: `$ 执行: ${scriptPath}`,
@@ -74,7 +81,7 @@ export function useShellExecution() {
         setRunning(false);
       }
     },
-    [addLine, clear, setRunning]
+    [addLine, clearTerminal, setRunning]
   );
 
   return { execute };
