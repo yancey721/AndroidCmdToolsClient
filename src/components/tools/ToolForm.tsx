@@ -13,13 +13,14 @@ import { Play, AlertTriangle } from "lucide-react";
 
 interface ToolFormProps {
   tool: ToolDefinition;
+  prefill?: Record<string, string> | null;
 }
 
-export function ToolForm({ tool }: ToolFormProps) {
+export function ToolForm({ tool, prefill }: ToolFormProps) {
   const [formValues, setFormValues] = useState<Record<string, string>>(() => {
     const defaults: Record<string, string> = {};
     tool.inputs.forEach((input) => {
-      defaults[input.id] = input.defaultValue || "";
+      defaults[input.id] = prefill?.[input.id] || input.defaultValue || "";
     });
     return defaults;
   });

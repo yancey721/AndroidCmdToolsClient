@@ -1734,3 +1734,19 @@ export function searchTools(query: string): ToolDefinition[] {
     return terms.every((term) => haystack.includes(term));
   });
 }
+
+const EXT_TOOL_MAP: Record<string, { toolId: string; inputId: string }> = {
+  ".apk": { toolId: "install-apk", inputId: "sourcePath" },
+  ".img": { toolId: "flash-temp-recovery", inputId: "recoveryFile" },
+  ".dex": { toolId: "dex-to-class", inputId: "inputFile" },
+  ".jar": { toolId: "jar-to-dex", inputId: "inputFile" },
+  ".class": { toolId: "class-to-dex", inputId: "inputPath" },
+};
+
+export function matchToolByFilePath(filePath: string): {
+  toolId: string;
+  inputId: string;
+} | null {
+  const ext = filePath.slice(filePath.lastIndexOf(".")).toLowerCase();
+  return EXT_TOOL_MAP[ext] || null;
+}

@@ -6,6 +6,7 @@ import { TerminalPanel } from "./TerminalPanel";
 import { SearchDialog } from "@/components/common/SearchDialog";
 import { ResizeHandle } from "@/components/common/ResizeHandle";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
+import { useDragDrop } from "@/hooks/useDragDrop";
 
 const SIDEBAR_MIN = 180;
 const SIDEBAR_MAX = 400;
@@ -20,8 +21,19 @@ export function AppLayout() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [terminalHeight, setTerminalHeight] = useState(TERMINAL_DEFAULT);
+  const [prefill, setPrefill] = useState<Record<string, string> | null>(null);
 
   useDeviceDetection();
+
+  const handleDragMatch = useCallback(
+    (result: { toolId: string; inputId: string; filePath: string }) => {
+      setPrefill({ [result.inputId]: result.filePath });
+      setSelectedToolId(result.toolId);
+    },
+    [],
+  );
+
+  const { isDragging } = useDragDrop(handleDragMatch);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -32,6 +44,11 @@ export function AppLayout() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const handleSelectTool = useCallback((id: string) => {
+    setPrefill(null);
+    setSelectedToolId(id);
   }, []);
 
   const handleSidebarResize = useCallback((delta: number) => {
@@ -52,12 +69,16 @@ export function AppLayout() {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           selectedToolId={selectedToolId}
-          onSelectTool={setSelectedToolId}
+          onSelectTool={handleSelectTool}
           width={sidebarWidth}
         />
         <ResizeHandle direction="horizontal" onResize={handleSidebarResize} />
         <div className="flex flex-col flex-1 overflow-hidden min-w-0">
-          <Workspace selectedToolId={selectedToolId} />
+          <Workspace
+            selectedToolId={selectedToolId}
+            prefill={prefill}
+            isDragging={isDragging}
+          />
           {terminalExpanded && (
             <ResizeHandle direction="vertical" onResize={handleTerminalResize} />
           )}
@@ -71,7 +92,7 @@ export function AppLayout() {
       <SearchDialog
         open={searchOpen}
         onOpenChange={setSearchOpen}
-        onSelectTool={setSelectedToolId}
+        onSelectTool={handleSelectTool}
       />
     </div>
   );
