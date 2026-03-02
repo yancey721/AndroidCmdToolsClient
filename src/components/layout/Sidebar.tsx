@@ -20,6 +20,7 @@ import {
 interface SidebarProps {
   selectedToolId: string | null;
   onSelectTool: (id: string) => void;
+  width?: number;
 }
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -30,7 +31,7 @@ const iconMap: Record<string, React.ReactNode> = {
   Key: <KeyRound className="h-4 w-4" />,
 };
 
-export function Sidebar({ selectedToolId, onSelectTool }: SidebarProps) {
+export function Sidebar({ selectedToolId, onSelectTool, width }: SidebarProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(toolCategories.map((c) => c.id))
   );
@@ -71,7 +72,10 @@ export function Sidebar({ selectedToolId, onSelectTool }: SidebarProps) {
   );
 
   return (
-    <div className="w-60 border-r border-border bg-muted/30 flex flex-col shrink-0 overflow-hidden">
+    <div
+      className="border-r border-border bg-muted/30 flex flex-col shrink-0 overflow-hidden"
+      style={{ width: width ?? 240 }}
+    >
       <div className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider shrink-0">
         工具分类
       </div>

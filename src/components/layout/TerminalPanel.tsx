@@ -17,9 +17,10 @@ import { useState } from "react";
 interface TerminalPanelProps {
   expanded: boolean;
   onToggle: () => void;
+  height?: number;
 }
 
-export function TerminalPanel({ expanded, onToggle }: TerminalPanelProps) {
+export function TerminalPanel({ expanded, onToggle, height = 200 }: TerminalPanelProps) {
   const { lines, isRunning, clear } = useTerminalStore();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
@@ -107,7 +108,7 @@ export function TerminalPanel({ expanded, onToggle }: TerminalPanelProps) {
         </div>
       </div>
       {expanded && (
-        <ScrollArea className="h-[200px] bg-background">
+        <ScrollArea className="bg-background" style={{ height }}>
           <div className="p-3 font-mono text-xs space-y-0.5 select-text cursor-text">
             {lines.length === 0 ? (
               <p className="text-muted-foreground select-none">
