@@ -67,7 +67,7 @@ export function ToolForm({ tool }: ToolFormProps) {
     await executeScript({
       scriptPath: scriptFullPath,
       stdinInputs,
-      toolName: tool.name,
+      toolName: tool.description,
       inputLabels,
     });
   };
