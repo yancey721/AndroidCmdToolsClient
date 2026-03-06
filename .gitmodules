@@ -1,0 +1,3 @@
+[submodule "AndroidCmdTools"]
+	path = AndroidCmdTools
+	url = https://github.com/getActivity/AndroidCmdTools.git
